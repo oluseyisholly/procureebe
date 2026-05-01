@@ -21,6 +21,20 @@ export class UserRepository extends BaseRepository<User> {
     return this.repo.findOne({ where: { email } });
   }
 
+  async findUserByEmailWithMemberships(email: string) {
+    return this.repo.findOne({
+      where: { email },
+      relations: ['memberships', 'memberships.group'],
+    });
+  }
+
+  async findUserByIdWithMemberships(id: string) {
+    return this.repo.findOne({
+      where: { id },
+      relations: ['memberships', 'memberships.group'],
+    });
+  }
+
   async findAllUsers(options: PaginationDto, userFilterDto: UserFilterDto) {
     const qb = this.repo.createQueryBuilder('user');
 

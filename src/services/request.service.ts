@@ -1,25 +1,24 @@
 import {
   Injectable,
   NotFoundException,
+  UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { StandardResopnse } from 'src/common';
-import { PaginatedRecordsDto, PaginationDto } from 'src/dtos/pagination.dto';
 import { DeleteResult } from 'typeorm';
-
+import { StandardResopnse } from 'src/common';
+import { RequestContext } from 'src/common/context/requestContext';
+import { RequestStatus } from 'src/common/index.enum';
+import { PaginatedRecordsDto, PaginationDto } from 'src/dtos/pagination.dto';
 import {
   RequestDto,
   RequestFilterDto,
-  UpdateRequestDto,
 } from 'src/dtos/request.dto';
-import { RequestRepository } from 'src/repositories/request.repository';
-import { Request } from 'src/entities/request.entity';
-
 import { RequestItemFilterDto } from 'src/dtos/requestItem.dto';
-import { RequestItem } from 'src/entities/requestItem.entity';
+import { PurchasePeriodItem } from 'src/entities/purchasePeriodItem.entity';
+import { Request } from 'src/entities/request.entity';
+import { RequestItem, RequestItemStatus } from 'src/entities/requestItem.entity';
 import { RequestItemRepository } from 'src/repositories/requestItem.repository';
-import { RequestStatus, PriceVarianceAction } from 'src/common/index.enum';
-import { StringDecoder } from 'string_decoder';
+import { RequestRepository } from 'src/repositories/request.repository';
 
 @Injectable()
 export class requestService {
@@ -32,42 +31,116 @@ export class requestService {
     requestDto: RequestDto,
     publish: boolean = false,
   ): Promise<StandardResopnse<RequestDto>> {
-    await this.requestItemRepository.transaction(async (purchaseItemTxRepo) => {
-      const { requestItems, ...rest } = requestDto;
+    const groupId = RequestContext.get('groupId');
+    const userId = RequestContext.get('userId');
 
-      const requestTxRepo = purchaseItemTxRepo.manager.getRepository(Request);
+    if (!groupId || !userId) {
+      throw new UnauthorizedException('Invalid Request Context');
+    }
 
-      const requestItemTxRepo =
-        purchaseItemTxRepo.manager.getRepository(RequestItem);
+    await this.requestItemRepository.transaction(async (txRepo) => {
+      const { requestItems, purchasePeriodId } = requestDto;
+
+      const requestTxRepo = txRepo.manager.getRepository(Request);
+      const requestItemTxRepo = txRepo.manager.getRepository(RequestItem);
+      const purchasePeriodItemTxRepo =
+        txRepo.manager.getRepository(PurchasePeriodItem);
+
+      const existingRequest = await requestTxRepo.findOne({
+        where: {
+          groupId,
+          purchasePeriodId,
+          userId,
+        },
+      });
+
+      if (existingRequest) {
+        throw new UnprocessableEntityException(
+          'A request already exists for this market run',
+        );
+      }
+
+      const selectedPeriodItems = Array.isArray(requestItems)
+        ? requestItems
+        : [];
+
+      const purchasePeriodItemIds = selectedPeriodItems.map(
+        (item) => item.purchasePeriodItemId,
+      );
+
+      let purchasePeriodItems: PurchasePeriodItem[] = [];
+      if (purchasePeriodItemIds.length > 0) {
+        purchasePeriodItems = await purchasePeriodItemTxRepo.find({
+          where: purchasePeriodItemIds.map((id) => ({
+            id,
+            groupId,
+            purchasePeriodId,
+          })),
+        });
+
+        if (purchasePeriodItems.length !== purchasePeriodItemIds.length) {
+          throw new UnprocessableEntityException(
+            'One or more request items do not belong to this market run',
+          );
+        }
+      }
+
+      const periodItemMap = new Map(
+        purchasePeriodItems.map((item) => [item.id, item]),
+      );
+
+      const hydratedItems = selectedPeriodItems.map((item) => {
+        const purchasePeriodItem = periodItemMap.get(item.purchasePeriodItemId);
+        if (!purchasePeriodItem) {
+          throw new UnprocessableEntityException(
+            'One or more request items are invalid',
+          );
+        }
+
+        const pricePerUnitAtRequest = Number(purchasePeriodItem.pricePerUnit);
+        const lineEstimatedTotal = Number(
+          (Number(item.requestedQty) * pricePerUnitAtRequest).toFixed(2),
+        );
+
+        return {
+          ...item,
+          groupId,
+          userId,
+          purchasePeriodId,
+          pricePerUnitAtRequest,
+          lineEstimatedTotal,
+          status: publish ? RequestItemStatus.SUBMITTED : RequestItemStatus.DRAFT,
+        };
+      });
+
+      const totalEstimatedCost = Number(
+        hydratedItems
+          .reduce((sum, item) => sum + item.lineEstimatedTotal, 0)
+          .toFixed(2),
+      );
 
       const requestData = {
-        ...rest,
-        // status: requestStatus.SAVED,
-        requestStartDate: new Date(),
+        groupId,
+        userId,
+        purchasePeriodId,
+        totalItems: hydratedItems.length,
+        totalEstimatedCost,
+        status: publish ? RequestStatus.SUBMITTED : RequestStatus.DRAFT,
       };
 
-      // 1. Create & save parent
       const request = requestTxRepo.create(requestData);
-
       const requestCreated = await requestTxRepo.save(request);
 
-      // 2. Save child array (if present)
-      if (Array.isArray(requestItems) && requestItems.length > 0) {
-        const items = requestItems.map((item) =>
+      if (hydratedItems.length > 0) {
+        const items = hydratedItems.map((item) =>
           requestItemTxRepo.create({
             ...item,
-            request: { id: requestCreated.id },
-            ifPriceHigherAction:
-              item.ifPriceHigherAction as unknown as PriceVarianceAction,
-            ifPriceLowerAction:
-              item.ifPriceLowerAction as unknown as PriceVarianceAction,
+            requestId: requestCreated.id,
           }),
         );
 
         await requestItemTxRepo.save(items);
       }
-
-      return requestCreated;
     });
 
     return {
@@ -76,20 +149,6 @@ export class requestService {
       message: 'Success',
     };
   }
-
-  // async updaterequest(
-  //   id: number,
-  //   updateRequestDto: UpdateRequestDto,
-  // ): Promise<StandardResopnse<UpdateRequestDto>> {
-
-  //   await this.requestRepository.update(id, updateRequestDto);
-
-  //   return {
-  //     data: updaterequestDto,
-  //     code: 200,
-  //     message: 'Success',
-  //   };
-  // }
 
   async deleterequest(id: string): Promise<StandardResopnse<DeleteResult>> {
     const existingrequest = await this.requestRepository.findById(id);

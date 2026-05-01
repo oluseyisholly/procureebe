@@ -38,4 +38,20 @@ export class PurchasePeriodItemRepository extends BaseRepository<PurchasePeriodI
 
     return helper.paginate(options, 'purchasePeriodItem');
   }
+
+  async findPurchasePeriodItemById(id: string) {
+    const qb = this.repo.createQueryBuilder('purchasePeriodItem');
+    const helper = new QueryBuilderHelper(qb);
+
+    helper.applyRelations([
+      {
+        alias: 'purchasePeriod',
+        path: 'purchasePeriodItem.purchasePeriod',
+      },
+    ]);
+
+    qb.where('purchasePeriodItem.id = :id', { id });
+
+    return helper.findOne('purchasePeriodItem');
+  }
 }

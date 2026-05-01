@@ -28,6 +28,10 @@ class ConfigService  {
     return mode != 'DEV';
   }
 
+  public getFrontendBaseUrl() {
+    return this.getValue('FRONT_END_BASE_URL', true);
+  }
+
   public createTypeOrmOptions(): TypeOrmModuleOptions {
     return {
       type: 'postgres',
@@ -57,6 +61,7 @@ const configService = new ConfigService(process.env).ensureValues([
   'POSTGRES_USER',
   'POSTGRES_PASSWORD',
   'POSTGRES_DATABASE',
+  'FRONT_END_BASE_URL',
 ]);
 
 export { configService };

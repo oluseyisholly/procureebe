@@ -130,30 +130,56 @@ export class PurchasePeriodService {
   }
 
   async updatePurchasePeriod(
-    id: number,
+    id: string,
     updatePurchasePeriodDto: UpdatePurchasePeriodDto,
+    publish: boolean = false,
   ): Promise<StandardResopnse<UpdatePurchasePeriodDto>> {
-    const existingPurchasePeriod = await this.purchasePeriodRepository.findOne({
-      name: updatePurchasePeriodDto.name,
-    });
+    const existingPurchasePeriod =
+      await this.purchasePeriodRepository.findById(id);
 
-    if (existingPurchasePeriod) {
-      throw new UnprocessableEntityException('Name Already Exists');
+    if (!existingPurchasePeriod) {
+      throw new NotFoundException('Market Run Not Found');
     }
 
-    if (existingPurchasePeriod.status === PurchasePeriodStatus.CLOSED) {
+    if (existingPurchasePeriod.status !== PurchasePeriodStatus.SAVED) {
       throw new UnprocessableEntityException(
-        'Invalid Request: Market Run has is Already Close',
+        'Invalid Request: Only saved market runs can be edited',
       );
     }
 
-    await this.purchasePeriodRepository.update(id, updatePurchasePeriodDto);
+    const groupId = RequestContext.get('groupId') ?? existingPurchasePeriod.groupId;
+
+    if (updatePurchasePeriodDto.name) {
+      const duplicatePurchasePeriod = await this.purchasePeriodRepository.findOne({
+        name: updatePurchasePeriodDto.name,
+        groupId,
+      });
+
+      if (duplicatePurchasePeriod && duplicatePurchasePeriod.id !== id) {
+        throw new UnprocessableEntityException('Name Already Exists');
+      }
+    }
+
+    const { marketRunCommodities: _marketRunCommodities, ...updatePayload } =
+      updatePurchasePeriodDto;
+
+    await this.purchasePeriodRepository.update(id, {
+      ...updatePayload,
+      ...(publish ? { status: PurchasePeriodStatus.PUBLISHED } : {}),
+    });
 
     return {
       data: updatePurchasePeriodDto,
       code: 200,
       message: 'Success',
     };
+  }
+
+  async updateAndPublishPurchasePeriod(
+    id: string,
+    updatePurchasePeriodDto: UpdatePurchasePeriodDto,
+  ): Promise<StandardResopnse<UpdatePurchasePeriodDto>> {
+    return this.updatePurchasePeriod(id, updatePurchasePeriodDto, true);
   }
 
   async deletePurchasePeriod(
@@ -170,6 +196,23 @@ export class PurchasePeriodService {
 
     return {
       data: null,
+      code: 200,
+      message: 'Success',
+    };
+  }
+
+  async findPurchasePeriodById(
+    id: string,
+  ): Promise<StandardResopnse<PurchasePeriod>> {
+    const purchasePeriod =
+      await this.purchasePeriodRepository.findPurchasePeriodById(id);
+
+    if (!purchasePeriod) {
+      throw new NotFoundException('Market Run Not Found');
+    }
+
+    return {
+      data: purchasePeriod,
       code: 200,
       message: 'Success',
     };

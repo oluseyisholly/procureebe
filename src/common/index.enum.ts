@@ -1,6 +1,7 @@
 export enum SwaggerApiEnumTags {
   APP = 'app',
   USER = 'User',
+  PROCUREEINVITE = 'Procuree Invite',
   CATEGORY = 'Category',
   COMMODITY = 'Commodity',
   COMMODITYUNIT = 'Commodity Unit',

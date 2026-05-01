@@ -34,4 +34,47 @@ export class PurchasePeriodRepository extends BaseRepository<PurchasePeriod> {
 
     return helper.paginate(options, 'purchasePeriod');
   }
+
+  async findPurchasePeriodById(id: string) {
+    const qb = this.repo.createQueryBuilder('purchasePeriod');
+    const helper = new QueryBuilderHelper(qb);
+
+    qb.leftJoinAndSelect(
+      'purchasePeriod.marketRunCommodities',
+      'marketRunCommodities',
+    )
+      .leftJoinAndSelect('marketRunCommodities.commodity', 'commodity')
+      .leftJoinAndSelect('marketRunCommodities.commodityUnit', 'commodityUnit')
+      .select([
+        'purchasePeriod.id',
+        'purchasePeriod.groupId',
+        'purchasePeriod.name',
+        'purchasePeriod.requestStartDate',
+        'purchasePeriod.requestEndDate',
+        'purchasePeriod.status',
+        'purchasePeriod.marketRunDate',
+        'purchasePeriod.allocationsLocked',
+        'purchasePeriod.created_at',
+        'purchasePeriod.updated_at',
+        'marketRunCommodities.id',
+        'marketRunCommodities.commodityId',
+        'marketRunCommodities.commodityUnitId',
+        'marketRunCommodities.pricePerUnit',
+        'marketRunCommodities.status',
+        'marketRunCommodities.displayLabel',
+        'marketRunCommodities.isVisibleToProcurees',
+        'marketRunCommodities.minQty',
+        'marketRunCommodities.maxQty',
+        'commodity.id',
+        'commodity.name',
+        'commodityUnit.id',
+        'commodityUnit.name',
+        'commodityUnit.type',
+      ]);
+
+    qb.where('purchasePeriod.id = :id', { id });
+    qb.orderBy('marketRunCommodities.created_at', 'ASC');
+
+    return helper.findOne('purchasePeriod');
+  }
 }

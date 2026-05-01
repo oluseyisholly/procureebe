@@ -7,6 +7,8 @@ import {
   Patch,
   Post,
   Query,
+  Req,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { RoleEnum, SwaggerApiEnumTags } from '../common/index.enum';
@@ -16,10 +18,12 @@ import {
   CheckAdminPhoneUniqueDto,
   CreateAdminUser,
   CreateUser,
-  LoginUserDto,
+  JoinTenantDto,
+  SignInUserDto,
+  SignUpResponseDto,
+  SwitchMembershipDto,
   TokenDto,
   UpdateUser,
-  UserDto,
   UserFilterDto,
 } from 'src/dtos/user.dto';
 import { UserService } from 'src/services/user.services';
@@ -30,6 +34,7 @@ import { Public } from 'src/decorators/skipAuth.decorator';
 import { DeleteResult } from 'typeorm';
 import { Roles } from 'src/decorators/roles.decorator';
 import { UserGroup } from 'src/entities/user_group.entity';
+import { Request as ExpressRequest } from 'express';
 
 @Controller('user')
 @ApiTags(SwaggerApiEnumTags.USER)
@@ -37,11 +42,22 @@ import { UserGroup } from 'src/entities/user_group.entity';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  private getAuthenticatedUserId(request: ExpressRequest & {
+    user: { sub?: string; id?: string };
+  }) {
+    const userId = request.user?.sub ?? request.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException('Authenticated user id is missing');
+    }
+
+    return userId;
+  }
+
   @Post()
   @Public()
   createUser(
     @Body() creatUser: CreateUser,
-  ): Promise<StandardResopnse<CreateUser>> {
+  ): Promise<StandardResopnse<SignUpResponseDto>> {
     return this.userService.createUser(creatUser);
   }
 
@@ -49,7 +65,7 @@ export class UserController {
   @Public()
   createAdmin(
     @Body() createAdminUser: CreateAdminUser,
-  ): Promise<StandardResopnse<CreateAdminUser>> {
+  ): Promise<StandardResopnse<SignUpResponseDto>> {
     return this.userService.createAdminUser(createAdminUser);
   }
 
@@ -69,25 +85,40 @@ export class UserController {
     return this.userService.checkAdminPhoneUnique(query.phone);
   }
 
-  // @Post('login')
-  // @Public()
-  // loginUser(
-  //   @Body() loginUserDto: LoginUserDto,
-  // ): Promise<StandardResopnse<TokenDto>> {
-  //   return this.userService.LoginPatronUser(loginUserDto);
-  // }
   @Post('signin')
   @Public()
-  loginAdminUser(
-    @Body() userDto: UserDto,
+  signIn(
+    @Body() signInUserDto: SignInUserDto,
   ): Promise<StandardResopnse<TokenDto>> {
-    return this.userService.LoginAdminUser(userDto);
+    return this.userService.signIn(signInUserDto);
+  }
+
+  @Post('join-tenant')
+  joinTenant(
+    @Req() request: ExpressRequest & { user: { sub?: string; id?: string } },
+    @Body() joinTenantDto: JoinTenantDto,
+  ): Promise<StandardResopnse<TokenDto>> {
+    return this.userService.joinTenant(
+      this.getAuthenticatedUserId(request),
+      joinTenantDto,
+    );
+  }
+
+  @Post('switch-membership')
+  switchMembership(
+    @Req() request: ExpressRequest & { user: { sub?: string; id?: string } },
+    @Body() switchMembershipDto: SwitchMembershipDto,
+  ): Promise<StandardResopnse<TokenDto>> {
+    return this.userService.switchMembership(
+      this.getAuthenticatedUserId(request),
+      switchMembershipDto,
+    );
   }
 
   @Patch(':id')
   updateUser(
     @Body() updateUser: UpdateUser,
-    @Param('id') id: number,
+    @Param('id') id: string,
   ): Promise<StandardResopnse<User>> {
     return this.userService.updateUser(id, updateUser);
   }
@@ -105,5 +136,14 @@ export class UserController {
     @Query() userFilterDto: UserFilterDto,
   ): Promise<StandardResopnse<PaginatedRecordsDto<UserGroup>>> {
     return this.userService.findUsers(paginationDto, userFilterDto);
+  }
+
+  @Get('members')
+  @Roles(RoleEnum.ADMIN)
+  async findTenantMembers(
+    @Query() paginationDto: PaginationDto,
+    @Query() userFilterDto: UserFilterDto,
+  ): Promise<StandardResopnse<PaginatedRecordsDto<UserGroup>>> {
+    return this.userService.findTenantMembers(paginationDto, userFilterDto);
   }
 }

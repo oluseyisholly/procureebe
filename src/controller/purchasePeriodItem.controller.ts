@@ -43,7 +43,7 @@ export class PurchasePeriodItemController {
   @Patch(':id')
   updatePurchasePeriodItem(
     @Body() updatePurchasePeriodItem: UpdatePurchasePeriodItemDto,
-    @Param('id') id: number,
+    @Param('id') id: string,
   ): Promise<StandardResopnse<UpdatePurchasePeriodItemDto>> {
     return this.PurchasePeriodItemService.updatePurchasePeriodItem(
       id,

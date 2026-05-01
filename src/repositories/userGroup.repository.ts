@@ -29,16 +29,19 @@ export class UserGroupRepository extends BaseRepository<UserGroup> {
         { alias: 'group', path: 'user_groups.group' },
       ])
       .applyFilter({
-        'user_groups.role': RoleEnum.PATRON,
+        'user_groups.role': [RoleEnum.PATRON, RoleEnum.PROCUREE],
       })
       .applySelect([
-        'user.id',
-        'user.firstName',
-        'user.email',
-        'user.created_at',
-        'group.id',
         'user_groups.id',
         'user_groups.role',
+        'user.id',
+        'user.firstName',
+        'user.lastName',
+        'user.email',
+        'user.phone',
+        'user.created_at',
+        'group.id',
+        'group.name',
       ])
       .applySearch({
         'user.firstName': userFilterDto.searchQuery,
@@ -49,15 +52,62 @@ export class UserGroupRepository extends BaseRepository<UserGroup> {
     return helper.paginate(options, 'user_groups');
   }
 
-  async findUserGroupByEmailAndRole(
-    email: string,
-    role: RoleEnum,
-    groupId?: string,
-  ) {
-    const _where = { user: { email, role} };
+  async findUserGroupByUserIdAndGroupId(userId: string, groupId: string) {
     return this.repo.findOne({
-      where: groupId ? { ..._where, groupId } : _where, // nested where on relation
-      relations: ['user'], // load the relations you need
+      where: { userId, groupId },
+      relations: ['user', 'group'],
+    });
+  }
+
+  async findFirstUserGroupByUserId(userId: string) {
+    return this.repo.findOne({
+      where: { userId },
+      relations: ['user', 'group'],
+      order: { created_at: 'ASC' },
+    });
+  }
+
+  async findMembershipsByUserId(userId: string) {
+    return this.repo.find({
+      where: { userId },
+      relations: ['user', 'group'],
+      order: { created_at: 'ASC' },
+    });
+  }
+
+  async findMembershipByIdForUser(userId: string, membershipId: string) {
+    return this.repo.findOne({
+      where: { id: membershipId, userId },
+      relations: ['user', 'group'],
+    });
+  }
+
+  async findMembershipByGroupIdForUser(userId: string, groupId: string) {
+    return this.repo.findOne({
+      where: { userId, groupId },
+      relations: ['user', 'group'],
+    });
+  }
+
+  async findMembershipByInviteCodeForUser(userId: string, inviteCode: string) {
+    return this.repo
+      .createQueryBuilder('user_groups')
+      .leftJoinAndSelect('user_groups.user', 'user')
+      .leftJoinAndSelect('user_groups.group', 'group')
+      .where('user_groups.userId = :userId', { userId })
+      .andWhere('group.inviteCode = :inviteCode', { inviteCode })
+      .getOne();
+  }
+
+  async userHasAdminMembership(userId: string) {
+    return this.repo.exist({
+      where: { userId, role: RoleEnum.ADMIN },
+    });
+  }
+
+  async userHasAnyMembership(userId: string) {
+    return this.repo.exist({
+      where: { userId },
     });
   }
 }

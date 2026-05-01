@@ -22,7 +22,11 @@ export class PurchasePeriodItem extends Base {
   @Index()
   purchasePeriodId!: string;
 
-  @ManyToOne(() => PurchasePeriod, { onDelete: 'CASCADE' })
+  @ManyToOne(
+    () => PurchasePeriod,
+    (purchasePeriod) => purchasePeriod.marketRunCommodities,
+    { onDelete: 'CASCADE' },
+  )
   purchasePeriod!: PurchasePeriod;
 
   // 🔹 which commodity (e.g. Onions, Tomatoes)

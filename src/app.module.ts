@@ -43,6 +43,10 @@ import { requestService } from './services/request.service';
 import { RequestItemService } from './services/requestItem.service';
 import { RequestController } from './controller/request.controller';
 import { RequestItemController } from './controller/requestItem.controller';
+import { ProcureeInvite } from './entities/procureeInvite.entity';
+import { ProcureeInviteRepository } from './repositories/procureeInvite.repository';
+import { ProcureeInviteService } from './services/procureeInvite.service';
+import { ProcureeInviteController } from './controller/procureeInvite.controller';
 
 @Module({
   imports: [
@@ -58,6 +62,7 @@ import { RequestItemController } from './controller/requestItem.controller';
       PurchasePeriodItem,
       Request,
       RequestItem,
+      ProcureeInvite,
     ]),
     JwtModule.register({
       global: true,
@@ -75,6 +80,7 @@ import { RequestItemController } from './controller/requestItem.controller';
     PurchasePeriodItemController,
     RequestController,
     RequestItemController,
+    ProcureeInviteController,
   ],
   providers: [
     {
@@ -98,6 +104,7 @@ import { RequestItemController } from './controller/requestItem.controller';
     PurchasePeriodItemService,
     requestService,
     RequestItemService,
+    ProcureeInviteService,
 
     CommodityRepository,
     CategoryRepository,
@@ -109,6 +116,7 @@ import { RequestItemController } from './controller/requestItem.controller';
     PurchasePeriodItemRepository,
     RequestRepository,
     RequestItemRepository,
+    ProcureeInviteRepository,
   ],
 })
 export class AppModule {}

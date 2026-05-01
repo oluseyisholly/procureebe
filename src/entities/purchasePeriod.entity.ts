@@ -1,7 +1,8 @@
-import { Entity, Column, Index, ManyToOne } from 'typeorm';
+import { Entity, Column, Index, ManyToOne, OneToMany } from 'typeorm';
 import { Base } from './base';
 import { Group } from './group.entity';
 import { PurchasePeriodStatus } from 'src/common/index.enum';
+import { PurchasePeriodItem } from './purchasePeriodItem.entity';
 
 @Entity('purchase_periods')
 @Index(['groupId', 'status'])
@@ -37,4 +38,10 @@ export class PurchasePeriod extends Base {
   @Column({ type: 'boolean', default: false })
   allocationsLocked!: boolean;
   // After Admin allocates items, prevent changes
+
+  @OneToMany(
+    () => PurchasePeriodItem,
+    (purchasePeriodItem) => purchasePeriodItem.purchasePeriod,
+  )
+  marketRunCommodities!: PurchasePeriodItem[];
 }

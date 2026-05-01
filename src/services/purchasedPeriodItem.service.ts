@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { StandardResopnse } from 'src/common';
 import { PaginatedRecordsDto, PaginationDto } from 'src/dtos/pagination.dto';
 import { DeleteResult } from 'typeorm';
@@ -11,6 +15,7 @@ import {
 import { PurchasePeriodItem } from 'src/entities/purchasePeriodItem.entity';
 
 import { PurchasePeriodItemRepository } from 'src/repositories/purchasePeriodItems.repository';
+import { PurchasePeriodStatus } from 'src/common/index.enum';
 
 @Injectable()
 export class PurchasePeriodItemService {
@@ -33,9 +38,25 @@ export class PurchasePeriodItemService {
   }
 
   async updatePurchasePeriodItem(
-    id: number,
+    id: string,
     updatePurchasePeriodItemDto: UpdatePurchasePeriodItemDto,
   ): Promise<StandardResopnse<UpdatePurchasePeriodItemDto>> {
+    const existingPurchasePeriodItem =
+      await this.PurchasePeriodItemRepository.findPurchasePeriodItemById(id);
+
+    if (!existingPurchasePeriodItem) {
+      throw new NotFoundException('PurchasePeriodItem Not found');
+    }
+
+    if (
+      existingPurchasePeriodItem.purchasePeriod?.status !==
+      PurchasePeriodStatus.SAVED
+    ) {
+      throw new UnprocessableEntityException(
+        'Invalid Request: Only items in saved market runs can be edited',
+      );
+    }
+
     await this.PurchasePeriodItemRepository.update(
       id,
       updatePurchasePeriodItemDto,
@@ -52,10 +73,19 @@ export class PurchasePeriodItemService {
     id: string,
   ): Promise<StandardResopnse<DeleteResult>> {
     const existingPurchasePeriodItem =
-      await this.PurchasePeriodItemRepository.findById(id);
+      await this.PurchasePeriodItemRepository.findPurchasePeriodItemById(id);
 
     if (!existingPurchasePeriodItem) {
       throw new NotFoundException('PurchasePeriodItem Not found');
+    }
+
+    if (
+      existingPurchasePeriodItem.purchasePeriod?.status !==
+      PurchasePeriodStatus.SAVED
+    ) {
+      throw new UnprocessableEntityException(
+        'Invalid Request: Only items in saved market runs can be edited',
+      );
     }
 
     await this.PurchasePeriodItemRepository.delete(id);

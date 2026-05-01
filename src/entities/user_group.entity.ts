@@ -1,8 +1,9 @@
-// user_group.entity.ts – TENANT-SCOPED (has groupId)
+// user_group.entity.ts – TENANT-SCOPED (has groupId + role)
 import { Entity, Column, ManyToOne, Unique, Index } from 'typeorm';
 import { Base } from './base';
 import { Group } from './group.entity';
 import { User } from './user.entity';
+import { RoleEnum } from 'src/common/index.enum';
 
 
 
@@ -17,4 +18,6 @@ export class UserGroup extends Base {
   @ManyToOne(() => Group, (g) => g.memberships, { onDelete: 'CASCADE' })
   group!: Group;
 
+  @Column({ type: 'enum', enum: RoleEnum })
+  role!: RoleEnum;
 }

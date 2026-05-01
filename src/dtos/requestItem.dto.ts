@@ -1,5 +1,6 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import {
+  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -9,6 +10,7 @@ import {
 } from 'class-validator';
 import { BaseFilterDto } from './baseFilter.dto';
 import { MaxGreaterThanMin } from 'src/decorators/maxGreaterThanMin.decorator';
+import { PriceVarianceAction } from 'src/common/index.enum';
 
 export class RequestItemDto {
   @ApiProperty()
@@ -27,9 +29,13 @@ export class RequestItemDto {
   @Min(1)
   requestedQty: number;
 
-  ifPriceHigherAction: string;
+  @ApiProperty({ enum: PriceVarianceAction })
+  @IsEnum(PriceVarianceAction)
+  ifPriceHigherAction: PriceVarianceAction;
 
-  ifPriceLowerAction: string;
+  @ApiProperty({ enum: PriceVarianceAction })
+  @IsEnum(PriceVarianceAction)
+  ifPriceLowerAction: PriceVarianceAction;
 }
 
 export class UpdateRequestItemDto extends PartialType(RequestItemDto) {}

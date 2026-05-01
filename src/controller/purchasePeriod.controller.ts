@@ -44,7 +44,10 @@ export class PurchasePeriodController {
   CreateAndPublishPurchasePeriod(
     @Body() creatPurchasePeriod: PurchasePeriodDto,
   ): Promise<StandardResopnse<PurchasePeriodDto>> {
-    return this.PurchasePeriodService.createPurchasePeriod(creatPurchasePeriod);
+    return this.PurchasePeriodService.createPurchasePeriod(
+      creatPurchasePeriod,
+      true,
+    );
   }
 
   @Post('/:id/publish')
@@ -57,9 +60,20 @@ export class PurchasePeriodController {
   @Patch(':id')
   updatePurchasePeriod(
     @Body() updatePurchasePeriod: UpdatePurchasePeriodDto,
-    @Param('id') id: number,
+    @Param('id') id: string,
   ): Promise<StandardResopnse<UpdatePurchasePeriodDto>> {
     return this.PurchasePeriodService.updatePurchasePeriod(
+      id,
+      updatePurchasePeriod,
+    );
+  }
+
+  @Patch(':id/update-publish')
+  updateAndPublishPurchasePeriod(
+    @Body() updatePurchasePeriod: UpdatePurchasePeriodDto,
+    @Param('id') id: string,
+  ): Promise<StandardResopnse<UpdatePurchasePeriodDto>> {
+    return this.PurchasePeriodService.updateAndPublishPurchasePeriod(
       id,
       updatePurchasePeriod,
     );
@@ -70,6 +84,13 @@ export class PurchasePeriodController {
     @Param('id') id: string,
   ): Promise<StandardResopnse<DeleteResult>> {
     return this.PurchasePeriodService.deletePurchasePeriod(id);
+  }
+
+  @Get(':id')
+  findSinglePurchasePeriod(
+    @Param('id') id: string,
+  ): Promise<StandardResopnse<PurchasePeriod>> {
+    return this.PurchasePeriodService.findPurchasePeriodById(id);
   }
 
   @Get()

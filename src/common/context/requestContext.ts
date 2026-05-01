@@ -4,6 +4,8 @@ import { AsyncLocalStorage } from 'async_hooks';
 export interface ContextData {
   userId?: string;
   groupId?: string;
+  membershipId?: string;
+  role?: string;
 }
 
 const asyncLocalStorage = new AsyncLocalStorage<ContextData>();

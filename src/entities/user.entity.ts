@@ -2,7 +2,6 @@
 import { Entity, Column, Unique, OneToMany } from 'typeorm';
 import { Base } from './base';
 import { UserGroup } from './user_group.entity';
-import { RoleEnum } from 'src/common/index.enum';
 
 @Entity('users')
 @Unique('uq_user_email', ['email'])
@@ -20,8 +19,6 @@ export class User extends Base {
 
   // UX helper
   @Column({ type: 'uuid', nullable: true }) currentGroupId?: string | null;
-
-  @Column({ type: 'enum', enum: RoleEnum, default: RoleEnum.ADMIN }) role!: RoleEnum;
 
   @OneToMany(() => UserGroup, (ug) => ug.user, { cascade: false })
   memberships!: UserGroup[];

@@ -15,9 +15,17 @@ export class RequestContextInterceptor implements NestInterceptor {
 
 
     let result: Observable<any>;
-    RequestContext.run({ userId: user?.id, groupId: user?.groupId }, () => {
-      result = next.handle();
-    });
+    RequestContext.run(
+      {
+        userId: user?.sub ?? user?.id,
+        groupId: user?.groupId,
+        membershipId: user?.membershipId,
+        role: user?.role,
+      },
+      () => {
+        result = next.handle();
+      },
+    );
     return result!;
   }
 }
